@@ -18,7 +18,7 @@ To take a remote measurement experiment
 3.1: ./run.sh run-kube hyper_app         # Run a kubernetes cluster on the EKS node using yaml configs under directory
 3.2: ./run.sh run-istio hyper_app        # Run an istio cluster on the EKS node using yaml configs under directory
 3.3: kubectl get pods                    # Make sure all pods are running
-4.1: ./run.sh add-gen-instance           # Create a seperate EC2 instance responsible for generating http request
+4.1: ./run.sh add-gen-instances <num of instances          # Create a seperate EC2 instance responsible for generating http request
                                          # Setup local environment automatically
                                          # Install packages to remote sites
 4.2: ./run.sh setup-gen-pkg              # Setup running binary to the EC2 generator, if previous step fails due to EC2 init
