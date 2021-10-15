@@ -11,37 +11,31 @@ function kill_test() {
 }
 
 
-if [ "$#" -lt 1 ]; then
-	echo "Usgae ./local_run.sh num_msg<int>"
-	exit 0
-fi
+# if [ "$#" -lt 1 ]; then
+# 	echo "Usgae ./local_run.sh num_msg<int>"
+# 	exit 0
+# fi
 
 #num_msg=$1
 
 ip=127.0.0.1
 ingress_port=40000
-wordcount_port=40001
-reverse_port=40002
+service_port=40001
 
-cd ../images/hyper_images/service_image/service
-cargo run $ip:${wordcount_port}&
+cd ../images/hyper_images/service_image/service/
+cargo run $ip:${service_port} &
 pid="$!"
 pids="$pids $pid"
-echo "run wordcount $pid"
+echo "run service $pid"
 sleep 0.1
 
-cd ../../reverse_image/reverse
-cargo run $ip:${reverse_port}&
-pid="$!"
-pids="$pids $pid"
-echo "run echo $pid"
-sleep 0.1
-
-cd ../../ingress_image/ingress
-cargo run $ip:${ingress_port} $ip:${wordcount_port} $ip:${reverse_port}&
+cd ../../service_image/service
+cargo run $ip:${ingress_port} $ip:${service_port} $ip:${service_port}&
 pid="$!"
 pids="$pids $pid"
 echo "run ingress $pid"
+
+# curl: curl --request POST --data "test123"  http://127.0.0.1:40000/run
 
 # collect data
 #echo RUN. tcpdump -i lo "port ${ingress_port} or ${wordcount_port} or ${reverse_port}" -x > record

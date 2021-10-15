@@ -1,7 +1,7 @@
 #!/bin/bash
 trap kill_procs SIGINT
 
-GENERATOR_LAUNCH_TEMPLATE=lt-07a4ac67dc12a17b0
+GENERATOR_LAUNCH_TEMPLATE=lt-0aad84df762dda663
 s3_prefix="https://service-mesh-app.s3.us-west-2.amazonaws.com"
 num_proc_per_gen=2
 
@@ -134,7 +134,7 @@ function remote_gen_data {
     done
 
     for gen_instance in ${gen_instances}; do 
-        ssh ${gen_instance} "/home/ubuntu/data-gen.sh ${eks_ips}:30009 $@" >/dev/null 2>&1
+        ssh ${gen_instance} -- "/home/ec2-user/data-gen.sh ${eks_ips}:30009 $@" >/dev/null 2>&1
     done
 }
 
@@ -219,7 +219,7 @@ function add_gen_instances_internal {
     done
 
 
-    rm -f ~/.ssh/config.d/serviceMesh
+    rm -f ~/.ssh/config
     setup_eks_ssh
     for instance in $instances; do
         details=$(aws ec2 describe-instances --instance-ids $instance --query "Reservations[*].Instances[*].{pubip:PublicIpAddress,id:InstanceId,privateip:PrivateIpAddress}[]")
@@ -227,16 +227,15 @@ function add_gen_instances_internal {
         echo $info > details
         local instanceId=$(echo $info | jq -r '.id')
         local ip=$(echo $info | jq -r '.pubip')
-        mkdir -p ~/.ssh/config.d
         echo "$instanceId,$ip" >> gen-instance.txt
         # setup up ssh
-        echo "Host $instanceId" >> ~/.ssh/config.d/serviceMesh
-        echo "    Hostname $ip" >> ~/.ssh/config.d/serviceMesh
-        echo "    User ubuntu" >> ~/.ssh/config.d/serviceMesh
-        echo "    IdentityFile ~/.ssh/bowen.pem" >> ~/.ssh/config.d/serviceMesh
-        echo "    StrictHostKeyChecking no" >> ~/.ssh/config.d/serviceMesh
-        echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config.d/serviceMesh
-        echo "" >> ~/.ssh/config.d/serviceMesh
+        echo "Host $instanceId" >> ~/.ssh/config
+        echo "    Hostname $ip" >> ~/.ssh/config
+        echo "    User ec2-user" >> ~/.ssh/config
+        echo "    IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
+        echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+        echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+        echo "" >> ~/.ssh/config
     done
     aws ec2 wait instance-running --instance-ids $instances
     echo "All instances started"
@@ -248,8 +247,8 @@ function setup_gen_pkg {
         local instanceId 
         local ip
         IFS=',' read -r instanceId ip  <<< "$node"
-        scp -r ./data-gen $instanceId:/home/ubuntu &> /dev/null
-        scp script/data-gen.sh $instanceId:/home/ubuntu &> /dev/null
+        scp -r ./data-gen $instanceId:/home/ec2-user &> /dev/null
+        scp script/data-gen.sh $instanceId:/home/ec2-user &> /dev/null
         ssh $instanceId -- "chmod +x data-gen.sh"
     done
     
@@ -708,13 +707,13 @@ function mini_plot {
 function setup_eks_ssh {
     instanceId=$(kubectl get nodes -o json | jq -r '.items[]' | jq -r '.metadata' | jq -r '.labels' | jq -r '.["alpha.eksctl.io/instance-id"]')
     ip=$(kubectl get nodes -o json | jq -r '.items[]' | jq -r '.status' | jq -r '.addresses' | jq -r '.[] | select(.["type"] == "ExternalIP") | .address')
-    echo "Host $instanceId" >> ~/.ssh/config.d/serviceMesh
-    echo "    Hostname $ip" >> ~/.ssh/config.d/serviceMesh
-    echo "    User ec2-user" >> ~/.ssh/config.d/serviceMesh
-    echo "    IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config.d/serviceMesh
-    echo "    StrictHostKeyChecking no" >> ~/.ssh/config.d/serviceMesh
-    echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config.d/serviceMesh
-    echo "" >> ~/.ssh/config.d/serviceMesh
+    echo "Host $instanceId" >> ~/.ssh/config
+    echo "    Hostname $ip" >> ~/.ssh/config
+    echo "    User ec2-user" >> ~/.ssh/config
+    echo "    IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
+    echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+    echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+    echo "" >> ~/.ssh/config
 }
 
 # on a single node
@@ -722,13 +721,13 @@ function setup_eks_node {
     instanceId=$(kubectl get nodes -o json | jq -r '.items[]' | jq -r '.metadata' | jq -r '.labels' | jq -r '.["alpha.eksctl.io/instance-id"]')
     ip=$(kubectl get nodes -o json | jq -r '.items[]' | jq -r '.status' | jq -r '.addresses' | jq -r '.[] | select(.["type"] == "ExternalIP") | .address')
     echo "$instanceId,$ip" > eks-instance.txt
-    echo "Host $instanceId" >> ~/.ssh/config.d/serviceMesh
-    echo "    Hostname $ip" >> ~/.ssh/config.d/serviceMesh
-    echo "    User ec2-user" >> ~/.ssh/config.d/serviceMesh
-    echo "    IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config.d/serviceMesh
-    echo "    StrictHostKeyChecking no" >> ~/.ssh/config.d/serviceMesh
-    echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config.d/serviceMesh
-    echo "" >> ~/.ssh/config.d/serviceMesh
+    echo "Host $instanceId" >> ~/.ssh/config
+    echo "    Hostname $ip" >> ~/.ssh/config
+    echo "    User ec2-user" >> ~/.ssh/config
+    echo "    IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
+    echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+    echo "    UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+    echo "" >> ~/.ssh/config
     tput setaf 2 
     echo "Setup EKS node $instanceId"
     tput sgr0
@@ -738,7 +737,8 @@ function setup_eks_node {
     ssh $instanceId -- "sudo yum install bcc -y"
     ssh $instanceId -- "sudo yum install perf -y"
 
-    # TODO
+    # Go to EC2 console -> security -> select security group -> add inbound traffic (custom TCP at 30009, 0.0.0.0/0)
+    # Reference 
     echo "Login AWS EC2 and modify inbound rules to Allow data to come in. At 30009"
 }
 
